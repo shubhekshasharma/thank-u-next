@@ -69,20 +69,23 @@ const observer = new MutationObserver(() => {
     emailSet.add(emailKey);
     const containsAny = rejectionKeywords.some(element => lowerBodyText.includes(element));
 
-     if (!containsAny) { 
+    if (!containsAny) { 
         console.log(`Not a rejection email from ${email}`)
+        return;
     }
 
+
+    console.log(`Rejection detected from ${email}`)
     const company = email.split('@')[1].split('.')[0]
     const companyName = company.charAt(0).toUpperCase() + company.slice(1)
 
     const prompt = `
-        You are a witty, supportive best friend roasting a company that just sent a rejection email. 
-        Given the company name and email excerpt, write ONE short, funny, lighthearted roast (max 15 words). 
-        Be savage but not mean. Think Ariana Grande "thank u, next" energy.
-        No quotes, no emojis, just the roast.
-        Company: ${companyName}
-        Email excerpt: ${emailTitle} - ${bodyText}
+    You are a witty, supportive best friend roasting a company that just sent a rejection email. 
+    Given the company name and email excerpt, write ONE short, funny, lighthearted roast (max 15 words). 
+    Be savage but not mean. Think Ariana Grande "thank u, next" energy.
+    No quotes, no emojis, just the roast.
+    Company: ${companyName}
+    Email excerpt: ${emailTitle} - ${bodyText}
     `
 
     const response = makeLLMRequest(prompt)
@@ -96,12 +99,8 @@ const observer = new MutationObserver(() => {
         })
         .catch(err => {
             console.error('Error fetching roast:', err);
-        });
-
-    if (containsAny) { 
-        console.log(`Rejection detected from ${email}`)
-    }
-   
+        })
+    ;
 
   }, 500);
 });
