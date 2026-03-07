@@ -3,13 +3,20 @@
   "name": "thank u, next",
   "version": "1.0",
   "description": "Detects rejection emails and serves the energy you need.",
+  "permissions": ["storage"],
   "action": {
     "default_popup": "popup.html"
   },
   "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["content.js"]
+    }
+  ],
+ "web_accessible_resources": [
   {
-    "matches": ["https://mail.google.com/*"],
-    "js": ["content.js"]
+    "resources": ["thank-u-next.m4a"],
+    "matches": ["https://mail.google.com/*"]
   }
 ]
 }
