@@ -51,6 +51,22 @@ let currentAudio = null;
 let savedWidgetPosition = null; // persists across rejection emails until page refresh
 let widgetRefs = null; // live refs to the active widget's controls for real-time updates
 
+const ACCENT = '#FF9DE2';
+// Icon HTML — computed once at load time while extension context is valid
+const PAUSE_ICON_HTML   = `<img src="${chrome.runtime.getURL('icons/pause.svg')}"   width="40" height="40" style="display:block;pointer-events:none">`;
+const PLAY_ICON_HTML    = `<img src="${chrome.runtime.getURL('icons/play.svg')}"    width="40" height="40" style="display:block;pointer-events:none">`;
+const SPEAKER_ICON_HTML = `<img src="${chrome.runtime.getURL('icons/speaker.svg')}" width="28" height="28" style="display:block;pointer-events:none">`;
+
+// Split roast text into alternating base (DM Sans) and accent (Ogg italic) words
+function applyMixedTypography(text) {
+    const t = text.charAt(0).toUpperCase() + text.slice(1);
+    return t.split(' ').map((word, i) =>
+        i % 3 === 1
+            ? `<span style="font-family:'Ogg',Georgia,serif!important;font-style:italic!important;font-weight:700!important;color:${ACCENT}!important">${word}</span>`
+            : word
+    ).join(' ');
+}
+
 // Cached settings — kept in sync with chrome.storage.local via onChanged
 let settings = { audioEnabled: true, volume: 1 };
 chrome.storage.local.get(['audioEnabled', 'volume'], (stored) => {
@@ -66,12 +82,13 @@ chrome.storage.onChanged.addListener((changes) => {
                 'display', settings.audioEnabled ? 'flex' : 'none', 'important'
             );
             if (settings.audioEnabled) {
-                // Restart audio from the beginning
                 startAudio(widgetRefs.playPauseBtn, widgetRefs.widget);
+                widgetRefs.playPauseBtn.innerHTML = PAUSE_ICON_HTML;
             } else if (currentAudio) {
                 currentAudio.pause();
                 currentAudio.currentTime = 0;
                 currentAudio = null;
+                widgetRefs.playPauseBtn.innerHTML = PLAY_ICON_HTML;
             }
         }
     }
@@ -93,7 +110,7 @@ function startAudio(playPauseBtn, widget) {
         currentAudio.volume = settings.volume;
         currentAudio.play().catch(err => console.error('Audio failed to play:', err));
         currentAudio.addEventListener('ended', () => {
-            if (playPauseBtn) playPauseBtn.textContent = '▶';
+            if (playPauseBtn) playPauseBtn.innerHTML = PLAY_ICON_HTML;
             widget.remove();
             widgetRefs = null;
         });
@@ -143,7 +160,26 @@ function playRejectionAudio() {
     if (existing) existing.remove();
 
     const affirmation = AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)];
-    const dismissText = DISMISS_TEXTS[Math.floor(Math.random() * DISMISS_TEXTS.length)];
+
+    // Inject DM Sans (Google Fonts) + Ogg (local Adobe Fonts) once
+    if (!document.getElementById('tun-fonts')) {
+        const fontLink = document.createElement('link');
+        fontLink.id = 'tun-fonts';
+        fontLink.rel = 'stylesheet';
+        fontLink.href = 'https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;1,300&display=swap';
+        document.head.appendChild(fontLink);
+
+        const fontStyle = document.createElement('style');
+        fontStyle.id = 'tun-ogg';
+        fontStyle.textContent = `
+            @font-face{font-family:'Ogg';src:local('Ogg Bold Italic'),local('Ogg-BoldItalic'),local('Ogg');font-weight:700;font-style:italic;}
+            #tun-controls input[type=range]{height:5px}
+            #tun-controls input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:${ACCENT};cursor:pointer;margin-top:-6.5px}
+            #tun-controls input[type=range]::-webkit-slider-runnable-track{height:5px;border-radius:3px}
+            #tun-controls input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:${ACCENT};border:none;cursor:pointer}
+        `;
+        document.head.appendChild(fontStyle);
+    }
 
     // Widget
     const widget = document.createElement('div');
@@ -151,23 +187,23 @@ function playRejectionAudio() {
     widget.style.cssText = [
         'position: fixed !important',
         'z-index: 2147483647 !important',
-        'background: #0d0d0d !important',
-        'border-radius: 16px !important',
-        'padding: 20px !important',
-        'width: 300px !important',
-        'box-shadow: 0 12px 40px rgba(0,0,0,0.8), 0 0 0 1px rgba(233,30,140,0.25) !important',
-        'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important',
+        'background: #21161C !important',
+        'border-radius: 20px !important',
+        'padding: 16px !important',
+        'width: 340px !important',
+        'box-shadow: 0 20px 60px rgba(0,0,0,0.7) !important',
+        'border: 1px solid rgba(255,255,255,0.06) !important',
         'color: #fff !important',
         'display: flex !important',
         'flex-direction: column !important',
-        'gap: 14px !important',
+        'gap: 0 !important',
         'visibility: visible !important',
         'opacity: 1 !important',
         'cursor: grab !important',
         'user-select: none !important',
     ].join(';');
 
-    // Apply saved position or default to top-right
+    // Apply saved position or default to bottom-right
     if (savedWidgetPosition) {
         widget.style.setProperty('top', savedWidgetPosition.top, 'important');
         widget.style.setProperty('left', savedWidgetPosition.left, 'important');
@@ -176,28 +212,29 @@ function playRejectionAudio() {
         widget.style.setProperty('right', '28px', 'important');
     }
 
-    // Roast — always shown
+    // Roast — DM Sans base, Ogg italic accent words via mixed typography
     const roastEl = document.createElement('div');
     roastEl.style.cssText = [
-        'font-size: 17px !important',
-        'font-weight: 800 !important',
-        'color: #e91e8c !important',
-        'line-height: 1.35 !important',
-        'letter-spacing: -0.2px !important',
-        'min-height: 48px !important',
+        `font-family: 'DM Sans', system-ui, sans-serif !important`,
+        'font-size: 24px !important',
+        'font-weight: 300 !important',
+        'color: #ffffff !important',
+        'line-height: 1.4 !important',
+        'min-height: 0 !important',
+        'margin-bottom: 8px !important',
     ].join(';');
-    roastEl.textContent = 'generating your roast...';
+    roastEl.innerHTML = applyMixedTypography('generating your roast...');
     widget.appendChild(roastEl);
 
-    // Affirmation
+    // Affirmation — lighter font, no divider
     const affirmEl = document.createElement('div');
     affirmEl.style.cssText = [
-        'font-size: 12px !important',
-        'color: #888 !important',
-        'font-style: italic !important',
+        `font-family: 'DM Sans', system-ui, sans-serif !important`,
+        'font-size: 16px !important',
+        'font-weight: 300 !important',
+        'color: #D3D0D2 !important',
         'line-height: 1.5 !important',
-        'border-top: 1px solid #1f1f1f !important',
-        'padding-top: 12px !important',
+        'margin-bottom: 18px !important',
     ].join(';');
     affirmEl.textContent = affirmation;
     widget.appendChild(affirmEl);
@@ -205,40 +242,39 @@ function playRejectionAudio() {
     // Audio controls — always rendered, hidden when audio is disabled
     const controlsRow = document.createElement('div');
     controlsRow.style.cssText = [
-        'align-items:center !important',
-        'gap:12px !important',
+        'align-items: center !important',
+        'gap: 10px !important',
         settings.audioEnabled ? 'display:flex !important' : 'display:none !important',
     ].join(';');
 
     const playPauseBtn = document.createElement('button');
-    playPauseBtn.textContent = '⏸';
+    playPauseBtn.innerHTML = PAUSE_ICON_HTML;
     playPauseBtn.style.cssText = [
-        'background: #e91e8c !important',
-        'color: #fff !important',
+        'background: none !important',
         'border: none !important',
-        'border-radius: 50% !important',
-        'width: 40px !important',
-        'height: 40px !important',
-        'font-size: 16px !important',
+        'padding: 0 !important',
         'cursor: pointer !important',
         'flex-shrink: 0 !important',
-        'line-height: 1 !important',
-        'box-shadow: 0 4px 12px rgba(233,30,140,0.4) !important',
+        'display: flex !important',
+        'align-items: center !important',
+        'justify-content: center !important',
+        'width: 40px !important',
+        'height: 40px !important',
     ].join(';');
     playPauseBtn.onclick = () => {
         if (!currentAudio) return;
         if (currentAudio.paused) {
             currentAudio.play();
-            playPauseBtn.textContent = '⏸';
+            playPauseBtn.innerHTML = PAUSE_ICON_HTML;
         } else {
             currentAudio.pause();
-            playPauseBtn.textContent = '▶';
+            playPauseBtn.innerHTML = PLAY_ICON_HTML;
         }
     };
 
     const volIcon = document.createElement('span');
-    volIcon.textContent = '🔊';
-    volIcon.style.cssText = 'font-size:13px !important; flex-shrink:0 !important;';
+    volIcon.innerHTML = SPEAKER_ICON_HTML;
+    volIcon.style.cssText = 'display:flex !important; align-items:center !important; flex-shrink:0 !important;';
 
     const volSlider = document.createElement('input');
     volSlider.type = 'range';
@@ -246,7 +282,7 @@ function playRejectionAudio() {
     volSlider.max = '1';
     volSlider.step = '0.05';
     volSlider.value = String(settings.volume);
-    volSlider.style.cssText = 'flex:1 !important; accent-color:#e91e8c !important; cursor:pointer !important; height:4px !important;';
+    volSlider.style.cssText = `flex:1 !important; accent-color:${ACCENT} !important; cursor:pointer !important;`;
     volSlider.oninput = () => {
         if (currentAudio) currentAudio.volume = parseFloat(volSlider.value);
     };
@@ -256,30 +292,6 @@ function playRejectionAudio() {
     controlsRow.appendChild(volSlider);
     widget.appendChild(controlsRow);
 
-    // Dismiss button
-    const dismissBtn = document.createElement('button');
-    dismissBtn.textContent = dismissText;
-    dismissBtn.style.cssText = [
-        'background: #1a1a1a !important',
-        'color: #666 !important',
-        'border: 1px solid #2a2a2a !important',
-        'border-radius: 10px !important',
-        'padding: 10px !important',
-        'width: 100% !important',
-        'font-size: 12px !important',
-        'font-weight: 600 !important',
-        'cursor: pointer !important',
-        'letter-spacing: 0.5px !important',
-        'text-transform: lowercase !important',
-        'font-family: inherit !important',
-    ].join(';');
-    dismissBtn.onclick = () => {
-        if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; currentAudio = null; }
-        widget.remove();
-        widgetRefs = null;
-    };
-
-    widget.appendChild(dismissBtn);
     document.documentElement.appendChild(widget);
 
     // Store refs so onChanged can live-update this widget
@@ -317,7 +329,7 @@ function playRejectionAudio() {
         savedWidgetPosition = { top: rect.top + 'px', left: rect.left + 'px' };
     });
 
-    return (roast) => { roastEl.textContent = roast; };
+    return (roast) => { roastEl.innerHTML = applyMixedTypography(roast); };
 }
 
 let timeout;

@@ -15,7 +15,7 @@
   ],
  "web_accessible_resources": [
   {
-    "resources": ["thank-u-next.m4a"],
+    "resources": ["thank-u-next.m4a", "icons/*.svg"],
     "matches": ["https://mail.google.com/*"]
   }
 ]
