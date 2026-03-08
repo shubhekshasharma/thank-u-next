@@ -528,7 +528,10 @@ const observer = new MutationObserver(() => {
     const { setRoast, setAffirmation } = playRejectionAudio();
 
     if (!OPEN_AI_LLM_URL) {
-        console.warn('LLM URL not configured, skipping roast generation.');
+        console.warn('LLM URL not configured, using fallback.');
+        const fb = fallbackRoasts[Math.floor(Math.random() * fallbackRoasts.length)];
+        setRoast(fb.roast, fb.highlight_keywords);
+        setAffirmation(fallbackAffirmations[Math.floor(Math.random() * fallbackAffirmations.length)]);
         return;
     }
 
