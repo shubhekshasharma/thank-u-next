@@ -1,11 +1,15 @@
 {
   "manifest_version": 3,
   "name": "thank u, next",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Detects rejection emails and serves the energy you need.",
   "permissions": ["storage"],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": "icons/extension-logo.png"
+  },
+  "icons": {
+    "128": "icons/extension-logo.png"
   },
   "content_scripts": [
     {
